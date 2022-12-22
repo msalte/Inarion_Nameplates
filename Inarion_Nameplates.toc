@@ -1,0 +1,10 @@
+## Interface: 10002
+## Title: Inarion Nameplates
+## Author: Morten Salte
+## Version: 1.0
+## SavedVariables: InarionNameplatesState
+## OptionalDeps: Ace3
+
+libs/embeds.xml
+
+main.lua
