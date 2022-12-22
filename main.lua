@@ -2,11 +2,36 @@ local NAME = ...
 
 local ACR = LibStub("AceConfig-3.0")
 local ACD = LibStub("AceConfigDialog-3.0")
-local db
 
 local state
 
 local f = CreateFrame("Frame")
+
+local defaults = {
+    version = 3,
+    groupCount = 1,
+    isSimpleNames = false,
+    colorGroupNameMap = {}, -- map of [groupName, displayName]
+    colorGroups = {}
+}
+
+local function GetDisplayName(groupName)
+    if state.colorGroupNameMap[groupName] then
+        return state.colorGroupNameMap[groupName]
+    end
+
+    return groupName
+end
+
+local function GetGroupName(displayName)
+    for k, v in pairs(state.colorGroupNameMap) do
+        if v == displayName then
+            return k
+        end
+    end
+
+    return displayName
+end
 
 local function UpdateNamePlates()
     for i, frame in ipairs(C_NamePlate.GetNamePlates()) do
@@ -16,7 +41,8 @@ local function UpdateNamePlates()
 end
 
 local function HandleAddUnitInputSaved(info, val)
-    local groupName = info[1]
+    local displayName = info[1]
+    local groupName = GetGroupName(displayName)
 
     for _, v in pairs(state.colorGroups[groupName].units) do
         if v == val then
@@ -29,7 +55,8 @@ local function HandleAddUnitInputSaved(info, val)
 end
 
 local function HandleRemoveUnitNameClicked(info, i)
-    local groupName = info[1]
+    local displayName = info[1]
+    local groupName = GetGroupName(displayName)
 
     table.remove(state.colorGroups[groupName].units, i)
 
@@ -37,7 +64,8 @@ local function HandleRemoveUnitNameClicked(info, i)
 end
 
 local function HandleAddCurrentTargetButtonClicked(info)
-    local groupName = info[1]
+    local displayName = info[1]
+    local groupName = GetGroupName(displayName)
     local targetName = GetUnitName("playertarget")
 
     for _, v in pairs(state.colorGroups[groupName].units) do
@@ -51,7 +79,8 @@ local function HandleAddCurrentTargetButtonClicked(info)
 end
 
 local function HandleDeleteColorGroupButtonClicked(info)
-    local groupName = info[1]
+    local displayName = info[1]
+    local groupName = GetGroupName(displayName)
 
     state.colorGroups[groupName] = nil
 
@@ -73,14 +102,17 @@ local function HandleAddColorGroupButtonClicked()
 end
 
 local function HandleColorSelectorChanged(info, r, g, b, a)
-    local groupName = info[1]
+    local displayName = info[1]
+    local groupName = GetGroupName(displayName)
+
     state.colorGroups[groupName].color = {r = r, g = g, b = b, a = a}
 
     UpdateNamePlates()
 end
 
 local function HandleGetColorForSelector(info)
-    local groupName = info[1]
+    local displayName = info[1]
+    local groupName = GetGroupName(displayName)
 
     local c = state.colorGroups[groupName].color
 
@@ -91,13 +123,56 @@ local function HandleGetColorForSelector(info)
     return 1, 1, 1, 1
 end
 
+local function HandleToggleSimpleNames()
+    if state.isSimpleNames then
+        state.isSimpleNames = false
+    else
+        state.isSimpleNames = true
+    end
+
+    UpdateNamePlates()
+end
+
+local function HandleGroupNameInputSaved(info, val)
+    local displayName = info[1]
+    local groupName = GetGroupName(displayName)
+
+    state.colorGroupNameMap[groupName] = val
+end
+
+local function HandleGetGroupName(info)
+    local groupName = info[1]
+    return GetDisplayName(groupName)
+end
+
 local function GetConfig()
     local opts = {
         type = "group",
         name = format("%s |cffADFF2F%s|r", NAME, GetAddOnMetadata(NAME, "Version")),
         inline = false,
         args = {
+            h1 = {
+                order = 1,
+                type = "header",
+                name = "General"
+            },
+            toggleSimpleNames = {
+                order = 2,
+                type = "toggle",
+                name = "Short Names",
+                desc = "Toggle to render short nameplate texts. Will show only last part of NPC names and hide server names from players.",
+                set = HandleToggleSimpleNames,
+                get = function()
+                    return state.isSimpleNames
+                end
+            },
+            h2 = {
+                order = 10,
+                type = "header",
+                name = "Color Groups"
+            },
             addbutton = {
+                order = 11,
                 type = "execute",
                 name = "Add Color Group",
                 func = HandleAddColorGroupButtonClicked
@@ -108,7 +183,7 @@ local function GetConfig()
     for i, colorGroup in pairs(state.colorGroups) do
         opts.args[colorGroup.groupName] = {
             type = "group",
-            name = colorGroup.groupName,
+            name = GetDisplayName(colorGroup.groupName),
             args = {
                 h1 = {
                     order = 10,
@@ -156,6 +231,14 @@ local function GetConfig()
                     name = "Group options",
                     order = 80
                 },
+                groupNameInput = {
+                    order = 98,
+                    width = "full",
+                    type = "input",
+                    name = "Group Name",
+                    get = HandleGetGroupName,
+                    set = HandleGroupNameInputSaved
+                },
                 deletebutton = {
                     order = 99,
                     type = "execute",
@@ -172,21 +255,16 @@ end
 function f:OnEvent(event, ...)
     if event == "ADDON_LOADED" then
         if ... == NAME then
-            if InarionNameplatesState then
+            if InarionNameplatesState and InarionNameplatesState.version == defaults.version then
                 state = InarionNameplatesState
             else
-                state = {
-                    version = 1,
-                    groupCount = 1,
-                    colorGroups = {}
-                }
-
+                state = CopyTable(defaults)
                 InarionNameplatesState = state
             end
 
             ACR:RegisterOptionsTable(NAME, GetConfig)
             ACD:AddToBlizOptions(NAME, NAME)
-            ACD:SetDefaultSize(NAME, 400, 480)
+            ACD:SetDefaultSize(NAME, 700, 600)
 
             self:SetupNameplates()
             self:UnregisterEvent(event)
@@ -206,9 +284,18 @@ function f:SetupNameplates()
             end
 
             local name = GetUnitName(frame.unit)
-            local nameParts = {strsplit(" ", name)}
 
-            frame.name:SetText(nameParts[#nameParts])
+            if state.isSimpleNames then
+                local nameParts = {strsplit(" ", name)}
+
+                if UnitIsPlayer(frame.unit) then
+                    -- for players, simple name removes server name suffix
+                    frame.name:SetText(nameParts[1])
+                else
+                    -- for npcs, simple name removes everything except last part
+                    frame.name:SetText(nameParts[#nameParts])
+                end
+            end
 
             for _, colorGroup in pairs(state.colorGroups) do
                 for _, unitName in pairs(colorGroup.units) do
@@ -225,7 +312,8 @@ function f:SetupNameplates()
     hooksecurefunc(
         "CompactUnitFrame_UpdateHealthColor",
         function(frame)
-            if not strfind(frame.unit, "nameplate") or UnitName(frame.unit) == playerName then
+            if not strfind(frame.unit, "nameplate") or UnitIsPlayer(frame.unit) then
+                -- don't change health color for players (use default class colors)
                 return
             end
 
@@ -253,3 +341,11 @@ end
 
 f:RegisterEvent("ADDON_LOADED")
 f:SetScript("OnEvent", f.OnEvent)
+
+_G["SLASH_INARIONNAMEPLATES1"] = "/inp"
+
+function SlashCmdList.INARIONNAMEPLATES()
+    if not ACD.OpenFrames.NAME then
+        ACD:Open(NAME)
+    end
+end
