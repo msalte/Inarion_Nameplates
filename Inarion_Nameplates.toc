@@ -1,4 +1,4 @@
-## Interface: 10002
+## Interface: 100002
 ## Title: Inarion Nameplates
 ## Author: Morten Salte
 ## Version: 1.0
