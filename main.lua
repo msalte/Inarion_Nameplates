@@ -47,14 +47,17 @@ function f:SetupNameplates()
 
             if state.isSimpleNames then
                 local nameParts = {strsplit(" ", name)}
+                local simpleName
 
                 if UnitIsPlayer(frame.unit) then
                     -- for players, simple name removes server name suffix
-                    frame.name:SetText(nameParts[1])
+                    simpleName = nameParts[1]
                 else
                     -- for npcs, simple name removes everything except last part
-                    frame.name:SetText(nameParts[#nameParts])
+                    simpleName = nameParts[#nameParts]
                 end
+
+                frame.name:SetText(simpleName)
             end
 
             for _, colorGroup in pairs(state.colorGroups) do
