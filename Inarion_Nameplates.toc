@@ -1,7 +1,7 @@
 ## Interface: 100002
 ## Title: Inarion Nameplates
 ## Author: Morten Salte
-## Version: 1.0
+## Version: 1.0.2
 ## SavedVariables: InarionNameplatesState
 ## OptionalDeps: Ace3
 
