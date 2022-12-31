@@ -80,9 +80,11 @@ function f:SetupNameplates()
             end
 
             local name = GetUnitName(frame.unit)
-            local isFriendly = not UnitIsEnemy("player", frame.unit) or not ShouldShowName(frame)
+            local react = UnitReaction(frame.unit, "player") or 4
 
-            if isFriendly then
+            if UnitIsTapDenied(frame.unit) then
+                color = {r = 1, g = 1, b = 1}
+            elseif react >= 4 then
                 color = {r = 1, g = 1, b = 0}
             else
                 color = {r = 1, g = 0, b = 0}
